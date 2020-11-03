@@ -2,3 +2,4 @@
 *.jugdata/
 /.tmp/
 /logs/
+/scripts/robotcar_config
