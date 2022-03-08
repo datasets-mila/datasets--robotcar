@@ -16,7 +16,7 @@ function get_files_url {
 	do
 		if [[ "${url_md5}" == "<td>"* ]]
 		then
-			echo "${url_md5:4}  ${_filename}" >> md5sums
+			echo "${url_md5:4}  ${_filename}" | tr '[:upper:]' '[:lower:]' >> md5sums
 		else
 			local _filename=${_dataset}/${url_md5#*/${_dataset}/}
 			echo "${url_md5} ${_filename}"
@@ -27,11 +27,12 @@ function get_files_url {
 function download_file {
 	local _file=$1
 	local _retry=${2:-5}
-	(($_retry > 0)) || exit_on_error_code "All attempts to download ${_file} failed"
+
 	git-annex get --fast \
 		-c annex.security.allowed-ip-addresses=all \
 		-c annex.web-options="${CURL_OPTIONS} --cookie .tmp/cookie_jar" \
 		${_file}
+
 	if [[ ! "$(md5sum "${_file}")" == "$(grep "${_file}" md5sums)" ]]
 	then
 		# Session expired
@@ -50,8 +51,15 @@ function download_file {
 		else
 			false || exit_on_error_code "Downloaded ${_file} resulted in an unexpected content"
 		fi
-		git-annex drop --force --fast "${_file}"
-		download_file "${_file}" $((_retry - 1))
+
+		local _retry=$((_retry - 1))
+		if (($_retry > 0))
+		then
+			git-annex drop --force --fast "${_file}"
+			download_file "${_file}" ${_retry}
+		else
+			false || exit_on_error_code "All attempts to download ${_file} failed"
+		fi
 	fi
 }
 
