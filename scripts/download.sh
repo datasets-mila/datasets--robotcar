@@ -26,7 +26,7 @@ function get_files_url {
 
 function download_file {
 	local _file=$1
-	local _retry=${2:-5}
+	local _retry=${2:-10}
 
 	git-annex get --fast \
 		-c annex.security.allowed-ip-addresses=all \
@@ -48,8 +48,6 @@ function download_file {
 		elif [[ ! -z "$(grep "Sorry" "${_file}")" ]]
 		then
 			sleep 60
-		else
-			false || exit_on_error_code "Downloaded ${_file} resulted in an unexpected content"
 		fi
 
 		local _retry=$((_retry - 1))
@@ -58,7 +56,8 @@ function download_file {
 			git-annex drop --force --fast "${_file}"
 			download_file "${_file}" ${_retry}
 		else
-			false || exit_on_error_code "All attempts to download ${_file} failed"
+			# Some files have the wrong md5 listed
+			$(false || exit_on_error_code "All attempts to download ${_file} failed") || true
 		fi
 	fi
 }
@@ -114,4 +113,4 @@ do
 done
 git-annex migrate --fast -c annex.largefiles=anything *
 
-md5sum -c md5sums > .tmp/md5sums_checks
+md5sum -c md5sums > md5sums.checks
